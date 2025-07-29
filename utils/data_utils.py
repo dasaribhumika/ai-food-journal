@@ -61,8 +61,18 @@ def get_entries_by_date_range(start_date: str, end_date: str) -> List[Dict[str, 
 
 def format_entry_for_display(entry: Dict[str, Any]) -> str:
     """Format an entry for display."""
-    timestamp = datetime.fromisoformat(entry['timestamp'])
-    time_str = timestamp.strftime("%I:%M %p")
+    # Use meal_time if available, otherwise use timestamp
+    if 'meal_time' in entry and entry['meal_time']:
+        time_str = entry['meal_time']
+        # Convert 24-hour format to 12-hour format if needed
+        try:
+            time_obj = datetime.strptime(time_str, "%H:%M")
+            time_str = time_obj.strftime("%I:%M %p")
+        except:
+            pass  # Keep original format if conversion fails
+    else:
+        timestamp = datetime.fromisoformat(entry['timestamp'])
+        time_str = timestamp.strftime("%I:%M %p")
     
     display_parts = [f"🕐 {time_str}"]
     
@@ -80,5 +90,8 @@ def format_entry_for_display(entry: Dict[str, Any]) -> str:
     if 'symptoms' in entry and entry['symptoms']:
         symptoms_str = ", ".join(entry['symptoms'])
         display_parts.append(f"⚠️ {symptoms_str}")
+    
+    if 'notes' in entry and entry['notes']:
+        display_parts.append(f"📝 {entry['notes']}")
     
     return " | ".join(display_parts)

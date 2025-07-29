@@ -216,7 +216,7 @@ def get_selfcare_statistics() -> Dict[str, Any]:
     total_tasks = len(tasks)
     completed_tasks = 0
     pending_tasks = 0
-    overdue_tasks = len(get_overdue_tasks())
+    overdue_tasks = len(get_overdue_selfcare_tasks())
     
     # Count by frequency
     daily_tasks = len([t for t in tasks if t.get('frequency') == 'Daily'])

@@ -1565,16 +1565,49 @@ def selfcare_page():
             elif task_frequency == "Monthly":
                 task['scheduled_day_of_month'] = task_day_of_month
             
-            # Save task
-            save_selfcare_task(task)
+            # Save task to user-specific file
+            current_tasks = load_user_data(st.session_state.username, "selfcare_tasks.json")
+            current_tasks.append(task)
+            save_user_data(st.session_state.username, "selfcare_tasks.json", current_tasks)
             st.success("✅ Self-care task added successfully!")
             st.rerun()
     
     # Self-care overview
     st.subheader("📊 Self-Care Overview")
     
-    # Get self-care statistics
-    stats = get_selfcare_statistics()
+    # Get self-care statistics from user-specific data
+    user_tasks = load_user_data(st.session_state.username, "selfcare_tasks.json")
+    
+    # Calculate statistics manually
+    if not user_tasks:
+        stats = {
+            'total_tasks': 0,
+            'total_completions': 0,
+            'overdue_tasks': 0,
+            'completion_rate': 0.0,
+            'daily_tasks': 0,
+            'weekly_tasks': 0,
+            'monthly_tasks': 0
+        }
+    else:
+        total_tasks = len(user_tasks)
+        total_completions = sum(len(t.get('completions', [])) for t in user_tasks)
+        overdue_tasks = len([t for t in user_tasks if get_selfcare_task_completion_status(t) == "Overdue"])
+        completion_rate = (total_completions / total_tasks) * 100 if total_tasks > 0 else 0
+        
+        daily_tasks = len([t for t in user_tasks if t.get('frequency') == 'Daily'])
+        weekly_tasks = len([t for t in user_tasks if t.get('frequency') == 'Weekly'])
+        monthly_tasks = len([t for t in user_tasks if t.get('frequency') == 'Monthly'])
+        
+        stats = {
+            'total_tasks': total_tasks,
+            'total_completions': total_completions,
+            'overdue_tasks': overdue_tasks,
+            'completion_rate': completion_rate,
+            'daily_tasks': daily_tasks,
+            'weekly_tasks': weekly_tasks,
+            'monthly_tasks': monthly_tasks
+        }
     
     col1, col2, col3, col4 = st.columns(4)
     
@@ -1609,7 +1642,24 @@ def selfcare_page():
     
     with tab1:
         st.subheader("📅 Today's Self-Care Tasks")
-        todays_tasks = get_todays_selfcare_tasks()
+        # Filter user tasks for today
+        todays_tasks = []
+        for task in user_tasks:
+            if task.get('frequency') == 'Daily':
+                todays_tasks.append(task)
+            elif task.get('frequency') == 'Weekly':
+                # Check if today is the scheduled day
+                if task.get('scheduled_day'):
+                    try:
+                        scheduled_day = datetime.fromisoformat(task['scheduled_day']).date()
+                        if scheduled_day == date.today():
+                            todays_tasks.append(task)
+                    except:
+                        pass
+            elif task.get('frequency') == 'Monthly':
+                # Check if today is the scheduled day of month
+                if task.get('scheduled_day_of_month') == date.today().day:
+                    todays_tasks.append(task)
         
         if todays_tasks:
             for task in todays_tasks:
@@ -1627,7 +1677,18 @@ def selfcare_page():
                 
                 with col2:
                     if st.button("✅ Complete", key=f"complete_selfcare_{task['id']}"):
-                        mark_selfcare_task_complete(task['id'])
+                        # Mark task as complete in user data
+                        for t in user_tasks:
+                            if t['id'] == task['id']:
+                                if 'completions' not in t:
+                                    t['completions'] = []
+                                completion = {
+                                    'timestamp': datetime.now().isoformat(),
+                                    'date': date.today().isoformat()
+                                }
+                                t['completions'].append(completion)
+                                break
+                        save_user_data(st.session_state.username, "selfcare_tasks.json", user_tasks)
                         st.success("Task completed!")
                         st.rerun()
                 
@@ -1637,7 +1698,9 @@ def selfcare_page():
                 
                 with col4:
                     if st.button("🗑️ Delete", key=f"delete_selfcare_{task['id']}"):
-                        delete_selfcare_task(task['id'])
+                        # Remove task from user data
+                        user_tasks = [t for t in user_tasks if t['id'] != task['id']]
+                        save_user_data(st.session_state.username, "selfcare_tasks.json", user_tasks)
                         st.success("Task deleted!")
                         st.rerun()
                 

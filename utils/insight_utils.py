@@ -56,9 +56,15 @@ def generate_ai_insights(entries: List[Dict[str, Any]]) -> str:
     # Prepare the data for analysis
     analysis_data = []
     for entry in entries:
+        # Use meal_time if available, otherwise fall back to timestamp
+        if 'meal_time' in entry and entry['meal_time']:
+            meal_time = entry['meal_time']
+        else:
+            meal_time = datetime.fromisoformat(entry['timestamp']).strftime('%H:%M')
+        
         analysis_entry = {
             'date': datetime.fromisoformat(entry['timestamp']).strftime('%Y-%m-%d'),
-            'time': datetime.fromisoformat(entry['timestamp']).strftime('%H:%M'),
+            'time': meal_time,
             'meal_type': entry.get('meal_type', 'Unknown'),
             'food_items': entry.get('food_items', []),
             'supplements': entry.get('supplements', []),
@@ -72,12 +78,15 @@ def generate_ai_insights(entries: List[Dict[str, Any]]) -> str:
 
     {json.dumps(analysis_data, indent=2)}
 
+    Note: The 'time' field represents when the meal was actually consumed (not when it was logged).
+
     Please provide insights on:
     1. Potential food triggers for symptoms (especially bloating, digestive issues)
-    2. Meal timing patterns and their effects
+    2. Meal timing patterns and their effects (analyze if meal times are realistic and well-spaced)
     3. Supplement effectiveness
     4. Dietary patterns and recommendations
     5. Any correlations between food choices and symptoms
+    6. Meal timing recommendations (optimal spacing between meals)
 
     Format your response in a clear, actionable way with specific recommendations.
     """

@@ -404,8 +404,28 @@ def food_journal_page():
                 todays_entries.append(entry)
     
     if todays_entries:
-        for entry in todays_entries:
-            st.markdown(f'<div class="entry-card">{format_entry_for_display(entry)}</div>', unsafe_allow_html=True)
+        # Limit to 10 entries for display
+        display_entries = todays_entries[-10:] if len(todays_entries) > 10 else todays_entries
+        
+        for i, entry in enumerate(display_entries):
+            col1, col2 = st.columns([4, 1])
+            
+            with col1:
+                st.markdown(f'<div class="entry-card">{format_entry_for_display(entry)}</div>', unsafe_allow_html=True)
+            
+            with col2:
+                # Create unique key for delete button
+                delete_key = f"delete_entry_{i}_{entry.get('timestamp', '')}"
+                if st.button("🗑️", key=delete_key, help="Delete this entry"):
+                    # Remove entry from user data
+                    user_entries.remove(entry)
+                    save_user_data(st.session_state.username, "food_journal.json", user_entries)
+                    st.success("✅ Entry deleted!")
+                    st.rerun()
+        
+        # Show count if more than 10 entries
+        if len(todays_entries) > 10:
+            st.info(f"📊 Showing last 10 of {len(todays_entries)} today's entries")
     else:
         st.info("No entries for today yet. Start logging your meals!")
     
@@ -453,12 +473,59 @@ def food_journal_page():
     
     user_insights = load_user_data(st.session_state.username, "insights.json")
     if user_insights:
-        # Show last 3 insights
-        recent_insights = user_insights[-3:] if len(user_insights) > 3 else user_insights
-        for insight in recent_insights:
-            st.markdown(f'<div class="insight-card"><strong>📊 Previous Analysis:</strong><br>{format_insight_for_display(insight)}</div>', unsafe_allow_html=True)
+        # Show last 10 insights maximum
+        recent_insights = user_insights[-10:] if len(user_insights) > 10 else user_insights
+        
+        for i, insight in enumerate(recent_insights):
+            col1, col2 = st.columns([4, 1])
+            
+            with col1:
+                st.markdown(f'<div class="insight-card"><strong>📊 Previous Analysis:</strong><br>{format_insight_for_display(insight)}</div>', unsafe_allow_html=True)
+            
+            with col2:
+                # Create unique key for delete button
+                delete_key = f"delete_insight_{i}_{insight.get('timestamp', '')}"
+                if st.button("🗑️", key=delete_key, help="Delete this insight"):
+                    # Remove insight from user data
+                    user_insights.remove(insight)
+                    save_user_data(st.session_state.username, "insights.json", user_insights)
+                    st.success("✅ Insight deleted!")
+                    st.rerun()
+        
+        # Show count if more than 10 insights
+        if len(user_insights) > 10:
+            st.info(f"📊 Showing last 10 of {len(user_insights)} total insights")
     else:
         st.info("No insights generated yet. Generate your first insight!")
+    
+    # Display all entries section
+    st.markdown('<h3 class="section-header">📋 All Entries</h3>', unsafe_allow_html=True)
+    
+    if user_entries:
+        # Limit to 10 entries for display
+        display_all_entries = user_entries[-10:] if len(user_entries) > 10 else user_entries
+        
+        for i, entry in enumerate(display_all_entries):
+            col1, col2 = st.columns([4, 1])
+            
+            with col1:
+                st.markdown(f'<div class="entry-card">{format_entry_for_display(entry)}</div>', unsafe_allow_html=True)
+            
+            with col2:
+                # Create unique key for delete button
+                delete_key = f"delete_all_entry_{i}_{entry.get('timestamp', '')}"
+                if st.button("🗑️", key=delete_key, help="Delete this entry"):
+                    # Remove entry from user data
+                    user_entries.remove(entry)
+                    save_user_data(st.session_state.username, "food_journal.json", user_entries)
+                    st.success("✅ Entry deleted!")
+                    st.rerun()
+        
+        # Show count if more than 10 entries
+        if len(user_entries) > 10:
+            st.info(f"📊 Showing last 10 of {len(user_entries)} total entries")
+    else:
+        st.info("No entries found. Start logging your meals!")
 
 def oura_analysis_page():
     st.markdown('<h2 class="section-header">📊 OURA Sleep & Activity Analysis</h2>', unsafe_allow_html=True)
@@ -711,7 +778,10 @@ def task_manager_page():
         todays_tasks = get_todays_tasks()
         
         if todays_tasks:
-            for task in todays_tasks:
+            # Limit to 10 tasks for display
+            display_tasks = todays_tasks[-10:] if len(todays_tasks) > 10 else todays_tasks
+            
+            for task in display_tasks:
                 col1, col2, col3 = st.columns([3, 1, 1])
                 
                 with col1:
@@ -734,6 +804,10 @@ def task_manager_page():
                         st.rerun()
                 
                 st.divider()
+            
+            # Show count if more than 10 tasks
+            if len(todays_tasks) > 10:
+                st.info(f"📊 Showing last 10 of {len(todays_tasks)} today's tasks")
         else:
             st.info("No tasks due today! 🎉")
     
@@ -742,7 +816,10 @@ def task_manager_page():
         upcoming_tasks = get_upcoming_tasks(7)
         
         if upcoming_tasks:
-            for task in upcoming_tasks:
+            # Limit to 10 tasks for display
+            display_upcoming = upcoming_tasks[-10:] if len(upcoming_tasks) > 10 else upcoming_tasks
+            
+            for task in display_upcoming:
                 col1, col2, col3 = st.columns([3, 1, 1])
                 
                 with col1:
@@ -766,6 +843,10 @@ def task_manager_page():
                         st.rerun()
                 
                 st.divider()
+            
+            # Show count if more than 10 tasks
+            if len(upcoming_tasks) > 10:
+                st.info(f"📊 Showing last 10 of {len(upcoming_tasks)} upcoming tasks")
         else:
             st.info("No upcoming tasks! 📅")
     
@@ -774,7 +855,10 @@ def task_manager_page():
         overdue_tasks = get_overdue_tasks()
         
         if overdue_tasks:
-            for task in overdue_tasks:
+            # Limit to 10 tasks for display
+            display_overdue = overdue_tasks[-10:] if len(overdue_tasks) > 10 else overdue_tasks
+            
+            for task in display_overdue:
                 col1, col2, col3 = st.columns([3, 1, 1])
                 
                 with col1:
@@ -785,10 +869,11 @@ def task_manager_page():
                         st.caption(task['description'])
                 
                 with col2:
-                    if st.button("✅ Complete", key=f"complete_over_{task['id']}"):
-                        mark_task_complete(task['id'])
-                        st.success("Task completed!")
-                        st.rerun()
+                    if not task.get('completed', False):
+                        if st.button("✅ Complete", key=f"complete_over_{task['id']}"):
+                            mark_task_complete(task['id'])
+                            st.success("Task completed!")
+                            st.rerun()
                 
                 with col3:
                     if st.button("🗑️ Delete", key=f"delete_over_{task['id']}"):
@@ -797,6 +882,10 @@ def task_manager_page():
                         st.rerun()
                 
                 st.divider()
+            
+            # Show count if more than 10 tasks
+            if len(overdue_tasks) > 10:
+                st.info(f"📊 Showing last 10 of {len(overdue_tasks)} overdue tasks")
         else:
             st.info("No overdue tasks! 🎉")
     

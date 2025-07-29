@@ -64,12 +64,18 @@ def format_entry_for_display(entry: Dict[str, Any]) -> str:
     # Use meal_time if available, otherwise use timestamp
     if 'meal_time' in entry and entry['meal_time']:
         time_str = entry['meal_time']
-        # Convert 24-hour format to 12-hour format if needed
+        # Convert 24-hour format to 12-hour format
         try:
             time_obj = datetime.strptime(time_str, "%H:%M")
             time_str = time_obj.strftime("%I:%M %p")
-        except:
-            pass  # Keep original format if conversion fails
+        except ValueError:
+            # If conversion fails, try other formats
+            try:
+                time_obj = datetime.strptime(time_str, "%I:%M %p")
+                time_str = time_obj.strftime("%I:%M %p")
+            except:
+                # Keep original format if all conversions fail
+                pass
     else:
         timestamp = datetime.fromisoformat(entry['timestamp'])
         time_str = timestamp.strftime("%I:%M %p")

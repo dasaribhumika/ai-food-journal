@@ -334,17 +334,29 @@ def food_journal_page():
             placeholder="Any additional observations or notes..."
         )
         
-        # Meal time
-        meal_time = st.time_input(
-            "Meal Time",
-            value=datetime.now().time()
+        # Meal time - using text input for better reliability
+        meal_time_input = st.text_input(
+            "Meal Time (e.g., 08:30, 12:15, 19:45)",
+            placeholder="Enter time in 24-hour format (HH:MM)",
+            help="Enter the time you ate this meal in 24-hour format (e.g., 08:30 for 8:30 AM, 19:45 for 7:45 PM)"
         )
     
     # Submit button
     if st.button("💾 Save Entry", type="primary"):
         if not food_items:
             st.error("Please enter at least one food item.")
+        elif not meal_time_input:
+            st.error("Please enter a meal time.")
         else:
+            # Validate meal time format
+            try:
+                # Try to parse the time to validate format
+                datetime.strptime(meal_time_input, "%H:%M")
+                meal_time = meal_time_input
+            except ValueError:
+                st.error("Please enter time in correct format (HH:MM) - e.g., 08:30, 12:15, 19:45")
+                return
+            
             # Create entry
             entry = {
                 'meal_type': meal_type,
@@ -352,7 +364,7 @@ def food_journal_page():
                 'supplements': supplements,
                 'symptoms': symptoms,
                 'notes': notes,
-                'meal_time': meal_time.strftime("%H:%M"),
+                'meal_time': meal_time,
                 'timestamp': datetime.now().isoformat()
             }
             

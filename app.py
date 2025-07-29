@@ -138,6 +138,9 @@ st.markdown("""
         border-radius: 10px;
         margin: 0.5rem 0;
         border-left: 4px solid #3498db;
+        color: #2c3e50;
+        font-weight: 500;
+        line-height: 1.6;
     }
     .insight-card {
         background-color: #f8f9fa;
@@ -163,6 +166,14 @@ st.markdown("""
     }
     .stButton > button:hover {
         background-color: #2980b9;
+    }
+    /* Ensure all text is visible */
+    .stMarkdown, .stText, .stSelectbox, .stTextArea, .stTextInput {
+        color: #2c3e50 !important;
+    }
+    /* Make sure food journal entries are clearly visible */
+    .entry-card p, .entry-card div, .entry-card span {
+        color: #2c3e50 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -2058,44 +2069,85 @@ def analytics_page():
         st.info("💡 Try selecting a different date range or add some food entries first!")
 
 def settings_page():
-    st.markdown('<h2 class="section-header">⚙️ Settings</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 class="section-header">⚙️ Settings & Configuration</h2>', unsafe_allow_html=True)
     
-    st.subheader("API Configuration")
-    
-    # OpenAI API Key configuration
-    openai_api_key = st.text_input(
-        "OpenAI API Key",
-        type="password",
-        help="Enter your OpenAI API key to enable AI insights generation"
-    )
-    
-    if openai_api_key:
-        st.success("✅ OpenAI API key configured")
+    st.subheader("🔑 API Configuration")
     
     # GROQ API Key configuration
     groq_api_key = st.text_input(
         "GROQ API Key",
         type="password",
-        help="Enter your GROQ API key to enable task management insights"
+        help="Enter your GROQ API key to enable AI insights generation for all features"
     )
     
     if groq_api_key:
         st.success("✅ GROQ API key configured")
+    else:
+        st.warning("⚠️ GROQ API key not configured. AI features will be limited.")
     
-    st.subheader("Data Management")
+    st.markdown("---")
     
-    col1, col2 = st.columns(2)
+    st.subheader("📊 User Statistics")
     
-    with col1:
-        if st.button("📥 Export Data"):
-            # Export functionality would go here
-            st.info("Export functionality coming soon!")
+    if st.session_state.username:
+        user_stats = get_user_stats(st.session_state.username)
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Food Entries", user_stats.get('food_journal_count', 0))
+        
+        with col2:
+            st.metric("Tasks", user_stats.get('tasks_count', 0))
+        
+        with col3:
+            st.metric("Goals", user_stats.get('goals_count', 0))
+        
+        with col4:
+            st.metric("Meal Plans", user_stats.get('meal_plans_count', 0))
+        
+        # Show account info
+        st.markdown("---")
+        st.subheader("👤 Account Information")
+        
+        if 'created_at' in user_stats:
+            st.info(f"**Account Created:** {user_stats['created_at']}")
+        
+        if 'last_login' in user_stats:
+            st.info(f"**Last Login:** {user_stats['last_login']}")
     
-    with col2:
-        if st.button("🗑️ Clear All Data"):
-            if st.checkbox("I understand this will delete all my data"):
-                # Clear data functionality would go here
-                st.warning("Clear data functionality coming soon!")
+    st.markdown("---")
+    
+    st.subheader("🗑️ Data Management")
+    
+    if st.button("🗑️ Delete All My Data", type="secondary"):
+        if st.session_state.username:
+            if delete_user_data(st.session_state.username):
+                st.success("✅ All data deleted successfully!")
+                st.session_state.authenticated = False
+                st.session_state.username = None
+                st.rerun()
+            else:
+                st.error("❌ Failed to delete data. Please try again.")
+    
+    st.markdown("---")
+    
+    st.subheader("ℹ️ About")
+    
+    st.info("""
+    **AI Food Journal** - A comprehensive personal health tracking application.
+    
+    **Features:**
+    - 📝 Food journal with AI insights
+    - 📊 OURA sleep and activity analysis
+    - ✅ Task management with AI prioritization
+    - 🎯 Goal tracking with motivational insights
+    - 🍽️ Meal planning with recipe management
+    - 🧘 Self-care routine scheduling
+    - 📈 Analytics and progress tracking
+    
+    **Data Privacy:** All your data is stored locally and securely.
+    """)
 
 if __name__ == "__main__":
     main()

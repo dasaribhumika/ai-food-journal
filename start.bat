@@ -1,7 +1,15 @@
 @echo off
-echo 🚀 Starting AI Food Journal Application...
+echo 🍎 Setting up AI Food Journal...
 
-REM Check if virtual environment exists
+REM Check if Python is installed
+python --version >nul 2>&1
+if errorlevel 1 (
+    echo ❌ Python is not installed. Please install Python first.
+    pause
+    exit /b 1
+)
+
+REM Create virtual environment if it doesn't exist
 if not exist "venv" (
     echo 📦 Creating virtual environment...
     python -m venv venv
@@ -12,27 +20,26 @@ echo 🔧 Activating virtual environment...
 call venv\Scripts\activate.bat
 
 REM Install dependencies
-echo 📚 Installing dependencies...
+echo 📥 Installing dependencies...
 pip install -r requirements.txt
 
-REM Check if .env file exists
+REM Create .env file if it doesn't exist
 if not exist ".env" (
-    echo ⚠️  No .env file found. Creating template...
+    echo 🔑 Creating .env file...
     (
-        echo # API Keys (optional but recommended for full functionality
-        echo OPENAI_API_KEY=your-openai-api-key-here
+        echo # GROQ API Key ^(get from https://console.groq.com/^)
         echo GROQ_API_KEY=your-groq-api-key-here
+        echo.
+        echo # Optional: Add your GROQ API key here for AI features
+        echo # GROQ_API_KEY=your-actual-groq-api-key
     ) > .env
-    echo 📝 Please edit .env file with your API keys
+    echo ✅ .env file created! Please edit it to add your GROQ API key.
 )
 
-REM Start the application
-echo 🌟 Launching application...
-echo 📱 Application will be available at: http://localhost:8501
-echo.
-echo Press Ctrl+C to stop the application
+echo 🚀 Starting the application...
+echo 📱 The app will open in your browser at http://localhost:8501
+echo 🔑 Don't forget to add your GROQ API key to the .env file for AI features!
 echo.
 
-streamlit run app.py --server.address=0.0.0.0 --server.port=8501
-
-pause 
+REM Start Streamlit
+streamlit run app.py 

@@ -39,16 +39,19 @@ def load_insights() -> List[Dict[str, Any]]:
         return []
 
 def generate_ai_insights(entries: List[Dict[str, Any]]) -> str:
-    """Generate AI insights using GPT-4 based on food journal entries."""
+    """Generate AI insights using GROQ based on food journal entries."""
     if not entries:
         return "No entries found to analyze."
     
-    # Set up OpenAI client
-    api_key = os.getenv('OPENAI_API_KEY')
+    # Set up GROQ client
+    api_key = os.getenv('GROQ_API_KEY')
     if not api_key:
-        return "OpenAI API key not found. Please set OPENAI_API_KEY environment variable."
-    
-    client = openai.OpenAI(api_key=api_key)
+        return "GROQ API key not found. Please set GROQ_API_KEY environment variable."
+
+    client = openai.OpenAI(
+        api_key=api_key,
+        base_url="https://api.groq.com/openai/v1"
+    )
     
     # Prepare the data for analysis
     analysis_data = []
@@ -63,7 +66,7 @@ def generate_ai_insights(entries: List[Dict[str, Any]]) -> str:
         }
         analysis_data.append(analysis_entry)
     
-    # Create prompt for GPT-4
+    # Create prompt for GROQ
     prompt = f"""
     Analyze the following food journal entries and provide insights about potential patterns, triggers, and recommendations:
 
@@ -81,7 +84,7 @@ def generate_ai_insights(entries: List[Dict[str, Any]]) -> str:
     
     try:
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="llama3-70b-8192",
             messages=[
                 {"role": "system", "content": "You are a nutrition and health expert analyzing food journal data to identify patterns and provide actionable insights."},
                 {"role": "user", "content": prompt}

@@ -98,86 +98,76 @@ def get_oura_summary_stats(df: pd.DataFrame) -> Dict[str, Any]:
     
     return stats
 
-def generate_oura_insights(oura_data: pd.DataFrame, food_entries: List[Dict[str, Any]]) -> str:
-    """Generate AI insights comparing OURA data with food journal entries."""
+def generate_oura_insights(oura_data: pd.DataFrame, food_entries: List[Dict[str, Any]] = None) -> str:
+    """Generate AI insights using GROQ based on OURA data and optionally food journal entries."""
     if oura_data.empty:
-        return "No OURA data available for analysis."
+        return "No OURA data found to analyze."
     
-    # Set up OpenAI client
-    api_key = os.getenv('OPENAI_API_KEY')
+    # Set up GROQ client
+    api_key = os.getenv('GROQ_API_KEY')
     if not api_key:
-        return "OpenAI API key not found. Please set OPENAI_API_KEY environment variable."
-    
-    client = openai.OpenAI(api_key=api_key)
+        return "GROQ API key not found. Please set GROQ_API_KEY environment variable."
+
+    client = openai.OpenAI(
+        api_key=api_key,
+        base_url="https://api.groq.com/openai/v1"
+    )
     
     # Prepare OURA data for analysis
-    oura_analysis = []
-    for _, row in oura_data.iterrows():
-        oura_entry = {
-            'date': row['date'].strftime('%Y-%m-%d') if pd.notna(row['date']) else 'Unknown',
-            'sleep_score': row.get('sleep_score', 'N/A'),
-            'sleep_hours': row.get('sleep_hours', 'N/A'),
-            'sleep_efficiency': row.get('sleep_efficiency', 'N/A'),
-            'readiness_score': row.get('readiness_score', 'N/A'),
-            'activity_score': row.get('activity_score', 'N/A'),
-            'avg_heart_rate': row.get('avg_heart_rate', 'N/A'),
-            'hrv': row.get('hrv', 'N/A')
-        }
-        oura_analysis.append(oura_entry)
+    oura_summary = get_oura_summary_stats(oura_data)
     
-    # Prepare food journal data for comparison
-    food_analysis = []
-    for entry in food_entries:
-        entry_date = datetime.fromisoformat(entry['timestamp']).strftime('%Y-%m-%d')
-        food_entry = {
-            'date': entry_date,
-            'meal_type': entry.get('meal_type', 'Unknown'),
-            'food_items': entry.get('food_items', []),
-            'supplements': entry.get('supplements', []),
-            'symptoms': entry.get('symptoms', []),
-            'meal_time': entry.get('meal_time', 'Unknown'),
-            'notes': entry.get('notes', '')
-        }
-        food_analysis.append(food_entry)
-    
-    # Create prompt for GPT-4
+    # Create analysis prompt
     prompt = f"""
-    Analyze the following OURA sleep/activity data and food journal entries to identify correlations and provide insights:
+    Analyze the following OURA sleep and activity data and provide insights about sleep quality, activity patterns, and health recommendations:
 
-    OURA DATA (Sleep, Readiness, Activity):
-    {json.dumps(oura_analysis, indent=2)}
+    OURA Data Summary:
+    {json.dumps(oura_summary, indent=2)}
 
-    FOOD JOURNAL ENTRIES:
-    {json.dumps(food_analysis, indent=2)}
+    Key Metrics:
+    - Average Sleep Duration: {oura_summary.get('avg_sleep_duration', 'N/A')} hours
+    - Average Sleep Efficiency: {oura_summary.get('avg_sleep_efficiency', 'N/A')}%
+    - Average Readiness Score: {oura_summary.get('avg_readiness', 'N/A')}
+    - Average Activity Level: {oura_summary.get('avg_activity', 'N/A')}
+    - Average Steps: {oura_summary.get('avg_steps', 'N/A')}
 
     Please provide insights on:
-    1. Sleep quality correlations with meal timing and food choices
-    2. How late meals affect sleep duration and quality
-    3. Impact of specific foods/supplements on sleep patterns
-    4. Readiness score correlations with dietary patterns
-    5. Activity level relationships with nutrition
-    6. Specific recommendations for improving sleep through diet
-    7. Patterns in heart rate variability and nutrition
+    1. Sleep quality patterns and potential improvements
+    2. Activity level recommendations
+    3. Readiness score interpretation
+    4. Sleep hygiene suggestions
+    5. Overall health optimization tips
 
-    Focus on actionable insights and specific recommendations.
-    Format your response in a clear, structured way with bullet points for key findings.
+    Format your response in a clear, actionable way with specific recommendations.
+    """
+    
+    # Add food journal correlation if available
+    if food_entries:
+        prompt += f"""
+
+    Additionally, analyze correlations with food journal entries:
+    {json.dumps(food_entries[:10], indent=2)}  # Show last 10 entries
+
+    Please also consider:
+    6. How meal timing might affect sleep quality
+    7. Food choices that could impact sleep
+    8. Recommendations for better sleep through diet
     """
     
     try:
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="llama3-70b-8192",
             messages=[
-                {"role": "system", "content": "You are a sleep and nutrition expert analyzing OURA ring data and food journal entries to identify correlations and provide actionable insights for better sleep and health."},
+                {"role": "system", "content": "You are a sleep and health expert analyzing OURA ring data to provide actionable insights for better sleep and overall health."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=1500,
+            max_tokens=1000,
             temperature=0.7
         )
         
         return response.choices[0].message.content
     
     except Exception as e:
-        return f"Error generating insights: {str(e)}"
+        return f"Error generating OURA insights: {str(e)}"
 
 def save_oura_insight(insight_content: str, oura_data_points: int, food_entries_count: int) -> None:
     """Save OURA insight to JSON file."""

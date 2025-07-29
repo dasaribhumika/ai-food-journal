@@ -1,9 +1,14 @@
 #!/bin/bash
 
-# AI Food Journal Startup Script
-echo "🚀 Starting AI Food Journal Application..."
+echo "🍎 Setting up AI Food Journal..."
 
-# Check if virtual environment exists
+# Check if Python 3 is installed
+if ! command -v python3 &> /dev/null; then
+    echo "❌ Python 3 is not installed. Please install Python 3 first."
+    exit 1
+fi
+
+# Create virtual environment if it doesn't exist
 if [ ! -d "venv" ]; then
     echo "📦 Creating virtual environment..."
     python3 -m venv venv
@@ -14,26 +19,26 @@ echo "🔧 Activating virtual environment..."
 source venv/bin/activate
 
 # Install dependencies
-echo "📚 Installing dependencies..."
+echo "📥 Installing dependencies..."
 pip install -r requirements.txt
 
-# Check if .env file exists
+# Create .env file if it doesn't exist
 if [ ! -f ".env" ]; then
-    echo "⚠️  No .env file found. Creating template..."
+    echo "🔑 Creating .env file..."
     cat > .env << EOF
-# API Keys (optional but recommended for full functionality)
-OPENAI_API_KEY=your-openai-api-key-here
+# GROQ API Key (get from https://console.groq.com/)
 GROQ_API_KEY=your-groq-api-key-here
+
+# Optional: Add your GROQ API key here for AI features
+# GROQ_API_KEY=your-actual-groq-api-key
 EOF
-    echo "📝 Please edit .env file with your API keys"
+    echo "✅ .env file created! Please edit it to add your GROQ API key."
 fi
 
-# Start the application
-echo "🌟 Launching application..."
-echo "📱 Application will be available at: http://localhost:8501"
-echo "🌐 To access from other devices, use: http://$(hostname -I | awk '{print $1}'):8501"
-echo ""
-echo "Press Ctrl+C to stop the application"
+echo "🚀 Starting the application..."
+echo "📱 The app will open in your browser at http://localhost:8501"
+echo "🔑 Don't forget to add your GROQ API key to the .env file for AI features!"
 echo ""
 
-streamlit run app.py --server.address=0.0.0.0 --server.port=8501 
+# Start Streamlit
+streamlit run app.py 

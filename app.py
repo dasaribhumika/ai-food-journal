@@ -93,6 +93,15 @@ from utils.selfcare_utils import (
     get_selfcare_task_completion_status,
     detect_missed_routines
 )
+from utils.user_utils import (
+    save_user,
+    authenticate_user,
+    load_user_data,
+    save_user_data,
+    user_exists,
+    get_user_stats,
+    delete_user_data
+)
 
 # Page configuration
 st.set_page_config(
@@ -159,7 +168,26 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def main():
+    # Initialize session state for authentication
+    if 'authenticated' not in st.session_state:
+        st.session_state.authenticated = False
+    if 'username' not in st.session_state:
+        st.session_state.username = None
+    
+    # Authentication page
+    if not st.session_state.authenticated:
+        login_page()
+        return
+    
+    # Main application (only shown if authenticated)
     st.markdown('<h1 class="main-header">🍎 AI Food Journal</h1>', unsafe_allow_html=True)
+    st.sidebar.success(f"👤 Welcome, {st.session_state.username}!")
+    
+    # Logout button
+    if st.sidebar.button("🚪 Logout"):
+        st.session_state.authenticated = False
+        st.session_state.username = None
+        st.rerun()
     
     # Sidebar for navigation
     st.sidebar.title("Navigation")
@@ -184,6 +212,76 @@ def main():
         analytics_page()
     elif page == "Settings":
         settings_page()
+
+def login_page():
+    st.markdown('<h1 class="main-header">🍎 AI Food Journal</h1>', unsafe_allow_html=True)
+    st.markdown('<h2 class="section-header">🔐 Welcome! Please Login or Register</h2>', unsafe_allow_html=True)
+    
+    # Create tabs for login and register
+    tab1, tab2 = st.tabs(["🔑 Login", "📝 Register"])
+    
+    with tab1:
+        st.subheader("Login to Your Account")
+        
+        username = st.text_input("Username", key="login_username")
+        password = st.text_input("Password", type="password", key="login_password")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("🔑 Login", type="primary"):
+                if username and password:
+                    if authenticate_user(username, password):
+                        st.session_state.authenticated = True
+                        st.session_state.username = username
+                        st.success("✅ Login successful!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Invalid username or password.")
+                else:
+                    st.error("❌ Please enter both username and password.")
+        
+        with col2:
+            if st.button("🔄 Clear"):
+                st.rerun()
+    
+    with tab2:
+        st.subheader("Create New Account")
+        
+        new_username = st.text_input("Choose Username", key="register_username")
+        new_password = st.text_input("Choose Password", type="password", key="register_password")
+        confirm_password = st.text_input("Confirm Password", type="password", key="confirm_password")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("📝 Register", type="primary"):
+                if new_username and new_password and confirm_password:
+                    if new_password != confirm_password:
+                        st.error("❌ Passwords do not match.")
+                    elif len(new_password) < 6:
+                        st.error("❌ Password must be at least 6 characters long.")
+                    elif user_exists(new_username):
+                        st.error("❌ Username already exists.")
+                    else:
+                        if save_user(new_username, new_password):
+                            st.success("✅ Account created successfully! Please login.")
+                            st.rerun()
+                        else:
+                            st.error("❌ Failed to create account.")
+                else:
+                    st.error("❌ Please fill in all fields.")
+        
+        with col2:
+            if st.button("🔄 Clear", key="clear_register"):
+                st.rerun()
+    
+    # Show user statistics if any users exist
+    st.markdown("---")
+    st.subheader("📊 App Statistics")
+    
+    # This would show basic app stats, but for now just show a message
+    st.info("🔐 Secure multi-user food journal with AI insights. Your data is private and secure.")
 
 def food_journal_page():
     st.markdown('<h2 class="section-header">📝 Log Your Food & Health</h2>', unsafe_allow_html=True)
@@ -254,12 +352,16 @@ def food_journal_page():
                 'supplements': supplements,
                 'symptoms': symptoms,
                 'notes': notes,
-                'meal_time': meal_time.strftime("%H:%M")
+                'meal_time': meal_time.strftime("%H:%M"),
+                'timestamp': datetime.now().isoformat()
             }
             
-            # Save entry
-            save_food_entry(entry)
-            st.success("✅ Entry saved successfully!")
+            # Save entry to user-specific file
+            current_entries = load_user_data(st.session_state.username, "food_journal.json")
+            current_entries.append(entry)
+            save_user_data(st.session_state.username, "food_journal.json", current_entries)
+            
+            st.success("✅ Food entry saved successfully!")
             
             # Clear form
             st.rerun()
@@ -267,7 +369,16 @@ def food_journal_page():
     # Display today's entries
     st.markdown('<h3 class="section-header">📅 Today\'s Entries</h3>', unsafe_allow_html=True)
     
-    todays_entries = get_todays_entries()
+    user_entries = load_user_data(st.session_state.username, "food_journal.json")
+    
+    # Filter for today's entries
+    today = date.today()
+    todays_entries = []
+    for entry in user_entries:
+        if 'timestamp' in entry:
+            entry_date = datetime.fromisoformat(entry['timestamp']).date()
+            if entry_date == today:
+                todays_entries.append(entry)
     
     if todays_entries:
         for entry in todays_entries:
@@ -282,7 +393,15 @@ def food_journal_page():
     from datetime import timedelta
     end_date = date.today().isoformat()
     start_date = (date.today() - timedelta(days=30)).isoformat()
-    recent_entries = get_entries_by_date_range(start_date, end_date)
+    
+    # Filter user entries for date range
+    recent_entries = []
+    for entry in user_entries:
+        if 'timestamp' in entry:
+            entry_date = datetime.fromisoformat(entry['timestamp']).date()
+            start_date_obj = date.today() - timedelta(days=30)
+            if start_date_obj <= entry_date <= date.today():
+                recent_entries.append(entry)
     
     if recent_entries:
         if st.button("🔍 Generate AI Insights", type="secondary"):
@@ -290,13 +409,16 @@ def food_journal_page():
                 insight_content = generate_ai_insights(recent_entries)
                 
                 if insight_content and not insight_content.startswith("Error"):
-                    # Save the insight
+                    # Save the insight to user-specific file
                     insight = {
                         'content': insight_content,
                         'entries_analyzed': len(recent_entries),
-                        'date_range': f"{start_date} to {end_date}"
+                        'date_range': f"{start_date} to {end_date}",
+                        'timestamp': datetime.now().isoformat()
                     }
-                    save_insight(insight)
+                    user_insights = load_user_data(st.session_state.username, "insights.json")
+                    user_insights.append(insight)
+                    save_user_data(st.session_state.username, "insights.json", user_insights)
                     st.success("✅ Insights generated and saved!")
                 
                 st.markdown(f'<div class="insight-card"><strong>🤖 AI Analysis:</strong><br>{insight_content}</div>', unsafe_allow_html=True)
@@ -306,8 +428,10 @@ def food_journal_page():
         # Display past insights
         st.markdown('<h4>📊 Recent Insights</h4>', unsafe_allow_html=True)
     
-    recent_insights = get_recent_insights(3)
-    if recent_insights:
+    user_insights = load_user_data(st.session_state.username, "insights.json")
+    if user_insights:
+        # Show last 3 insights
+        recent_insights = user_insights[-3:] if len(user_insights) > 3 else user_insights
         for insight in recent_insights:
             st.markdown(f'<div class="insight-card"><strong>📊 Previous Analysis:</strong><br>{format_insight_for_display(insight)}</div>', unsafe_allow_html=True)
     else:
@@ -1726,7 +1850,15 @@ def analytics_page():
     st.info(f"📅 Analyzing data from **{start_date.strftime('%B %d, %Y')}** to **{end_date.strftime('%B %d, %Y')}**")
     
     # Get entries for the selected date range
-    entries = get_entries_by_date_range(start_date.isoformat(), end_date.isoformat())
+    user_entries = load_user_data(st.session_state.username, "food_journal.json")
+    
+    # Filter entries for the selected date range
+    entries = []
+    for entry in user_entries:
+        if 'timestamp' in entry:
+            entry_date = datetime.fromisoformat(entry['timestamp']).date()
+            if start_date <= entry_date <= end_date:
+                entries.append(entry)
     
     if entries:
         st.subheader(f"📈 Summary Statistics ({len(entries)} entries)")
